@@ -15,9 +15,15 @@ def add_task():
     if not data or "task" not in data:
         return jsonify({"error": "Task name required"}), 400
 
+    #Get and validate priority( defult to  "low"  if missing /invalid)
+    priority = data.get("priority", "low").lower()
+    if priority not in ("high", "medium", "low"):
+        priority = "low"
+ 
     task = {
         "id": len(tasks) + 1,
-        "task": data["task"]
+        "task": data["task"],
+        "priority": priority
     }
 
     tasks.append(task)
