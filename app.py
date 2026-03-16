@@ -16,6 +16,7 @@ def add_task():
         return jsonify({"error": "Task name required"}), 400
 
     #Get and validate priority( defult to  "low"  if missing /invalid)
+
     priority = data.get("priority", "low").lower()
     if priority not in ("high", "medium", "low"):
         priority = "low"
