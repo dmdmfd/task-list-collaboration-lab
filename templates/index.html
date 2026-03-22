@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Task List Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="top-bar">
+                <div class="pill">Task Management Dashboard</div>
+                <div class="pill">Flask Web App</div>
+            </div>
+            <h1>Task List Manager</h1>
+            <p>Organize tasks, due dates, priorities, and completion status in one workspace</p>
+        </header>
+
+        <section class="card form-card">
+            <h2>Add Task</h2>
+            <form id="taskForm">
+                <input type="text" id="taskInput" placeholder="Enter task name" required />
+                <input type="date" id="dueDateInput" />
+                <select id="priorityInput">
+                    <option value="Low">Low Priority</option>
+                    <option value="Medium">Medium Priority</option>
+                    <option value="High">High Priority</option>
+                </select>
+                <button type="submit">Add Task</button>
+            </form>
+        </section>
+
+        <section class="card search-card">
+            <h2>Search Tasks</h2>
+            <div class="search-row">
+                <input type="text" id="searchInput" placeholder="Search by task name" />
+                <button type="button" onclick="searchTasks()">Search</button>
+                <button type="button" class="secondary" onclick="loadTasks()">Show All</button>
+            </div>
+        </section>
+
+        <section class="card list-card">
+            <h2>Tasks</h2>
+            <div id="taskList" class="task-list"></div>
+        </section>
+    </div>
+
+    <script>
+        const taskForm = document.getElementById("taskForm");
+        const taskInput = document.getElementById("taskInput");
+        const dueDateInput = document.getElementById("dueDateInput");
+        const priorityInput = document.getElementById("priorityInput");
+        const searchInput = document.getElementById("searchInput");
+        const taskList = document.getElementById("taskList");
+
+        async function loadTasks() {
+            const response = await fetch("/tasks");
+            const tasks = await response.json();
+            displayTasks(tasks);
+        }
+
+        async function searchTasks() {
+            const keyword = searchInput.value.trim();
+
+            if (!keyword) {
+                loadTasks();
+                return;
+            }
+
+            const response = await fetch(`/tasks/search?keyword=${encodeURIComponent(keyword)}`);
+            const tasks = await response.json();
+            displayTasks(tasks);
+        }
+
+        function getPriorityClass(priority) {
+            const value = (priority || "Low").toLowerCase();
+            if (value === "high") return "priority-high";
+            if (value === "medium") return "priority-medium";
+            return "priority-low";
+        }
+
+        function displayTasks(tasks) {
+            taskList.innerHTML = "";
+
+            if (tasks.length === 0) {
+                taskList.innerHTML = "<p class='empty'>No tasks found. Add a task to get started.</p>";
+                return;
+            }
+
+            tasks.forEach(task => {
+                const taskCard = document.createElement("div");
+                taskCard.className = `task-card ${task.completed ? 'completed-card' : ''}`;
+
+                taskCard.innerHTML = `
+                    <div class="task-info">
+                        <h3 class="${task.completed ? 'completed-text' : ''}">${task.task}</h3>
+                        <div class="task-meta">
+                            <span class="badge">Due: ${task.due_date || "Not set"}</span>
+                            <span class="badge ${getPriorityClass(task.priority)}">Priority: ${task.priority || "Low"}</span>
+                            <span class="badge status-badge ${task.completed ? 'status-complete' : 'status-pending'}">
+                                ${task.completed ? "Completed" : "Pending"}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="task-actions">
+                        <button type="button" class="complete-btn" onclick="toggleComplete(${task.id})">
+                            ${task.completed ? "Undo" : "Complete"}
+                        </button>
+                        <button type="button" class="delete-btn" onclick="deleteTask(${task.id})">Delete</button>
+                    </div>
+                `;
+
+                taskList.appendChild(taskCard);
+            });
+        }
+
+        async function toggleComplete(id) {
+            await fetch(`/tasks/${id}/complete`, {
+                method: "PUT"
+            });
+            loadTasks();
+        }
+
+        async function deleteTask(id) {
+            await fetch(`/tasks/${id}`, {
+                method: "DELETE"
+            });
+            loadTasks();
+        }
+
+        taskForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const newTask = {
+                task: taskInput.value.trim(),
+                due_date: dueDateInput.value,
+                priority: priorityInput.value
+            };
+
+            if (!newTask.task) return;
+
+            await fetch("/tasks", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(newTask)
+            });
+
+            taskForm.reset();
+            loadTasks();
+        });
+
+        loadTasks();
+    </script>
+</body>
+</html>
